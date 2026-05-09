@@ -18,6 +18,8 @@ export default function App() {
   const [pageImages, setPageImages] = useState({});
   const [galleryImages, setGalleryImages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [heroImageSrc, setHeroImageSrc] = useState(null);
+  const [heroImageLoaded, setHeroImageLoaded] = useState(false);
 
   // Default fallbacks in case database is empty or fetching fails
   const fallbackImages = {
@@ -103,6 +105,7 @@ export default function App() {
       
       // Fetch images
       const { data: imagesData, error: imagesError } = await supabase.from('page_images').select('*');
+      let cmsHero = null;
       if (!imagesError && imagesData?.length > 0) {
         const coreImages = {};
         const gImages = [];
@@ -115,16 +118,18 @@ export default function App() {
         });
         setPageImages(coreImages);
         if (gImages.length > 0) setGalleryImages(gImages);
+        cmsHero = coreImages.hero;
       }
+      setHeroImageSrc(cmsHero || fallbackImages.hero);
     } catch (e) {
       console.error("Error fetching data:", e);
+      setHeroImageSrc(fallbackImages.hero);
     } finally {
       setLoading(false);
     }
   };
 
   const currentRooms = rooms.length > 0 ? rooms : fallbackRooms;
-  const currentHeroImage = pageImages.hero || fallbackImages.hero;
   const currentRestaurantImage = pageImages.restaurant || fallbackImages.restaurant;
   const currentGallery = galleryImages.length > 0 ? galleryImages : fallbackGallery;
 
@@ -232,14 +237,22 @@ export default function App() {
       </nav>
 
       {/* 2. HERO */}
-      <section id="home" className="relative h-screen flex items-center justify-center overflow-hidden">
+      <section id="home" className="relative h-screen flex items-center justify-center overflow-hidden bg-[#0f1011]">
         <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-black/60 sm:bg-black/50 z-10"></div>
-          <img 
-            src={currentHeroImage} 
-            alt="Hotel Kusum Interior" 
-            className="w-full h-full object-cover grayscale-[20%] contrast-110"
-          />
+          <div className="absolute inset-0 bg-black/60 sm:bg-black/50 z-10 transition-opacity duration-1000"></div>
+          {heroImageSrc && (
+            <img 
+              src={heroImageSrc} 
+              alt="Hotel Kusum Interior" 
+              className={`w-full h-full object-cover grayscale-[20%] contrast-110 transition-opacity duration-1000 ${heroImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              onLoad={() => setHeroImageLoaded(true)}
+              onError={() => {
+                if (heroImageSrc !== fallbackImages.hero) {
+                  setHeroImageSrc(fallbackImages.hero);
+                }
+              }}
+            />
+          )}
         </div>
         
         <div className="relative z-20 text-center px-4 max-w-4xl mx-auto flex flex-col items-center justify-center gap-3 animate-in fade-in slide-in-from-bottom-8 duration-1000 mt-16">
