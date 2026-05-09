@@ -9,6 +9,7 @@ CREATE TABLE rooms (
   name TEXT NOT NULL,
   description TEXT,
   price NUMERIC NOT NULL,
+  total_rooms INTEGER NOT NULL DEFAULT 1,
   image_url TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()

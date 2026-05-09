@@ -66,11 +66,84 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  app.post("/api/check-availability", async (req, res) => {
+    try {
+      const { roomId, checkIn, checkOut, requestedCount } = req.body;
+      if (!roomId || !checkIn || !checkOut || !requestedCount) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Get total rooms available
+      const { data: room, error: roomError } = await supabaseAdmin
+        .from("rooms")
+        .select("total_rooms")
+        .eq("id", roomId)
+        .single();
+      
+      if (roomError || !room) {
+        return res.status(404).json({ error: "Room not found" });
+      }
+
+      const totalRooms = room.total_rooms || 1;
+
+      // Find overlapping bookings
+      // Overlap condition: booking.check_in < req.checkOut AND booking.check_out > req.checkIn
+      // Ignoring Cancelled bookings
+      const { data: bookings, error: bookingsError } = await supabaseAdmin
+        .from("bookings")
+        .select("room_count")
+        .eq("room_id", roomId)
+        .neq("status", "Cancelled")
+        .lt("check_in", checkOut)
+        .gt("check_out", checkIn);
+
+      if (bookingsError) {
+        throw new Error("Failed to fetch bookings: " + bookingsError.message);
+      }
+
+      const bookedCount = bookings.reduce((sum, b) => sum + (b.room_count || 1), 0);
+
+      const availableCount = totalRooms - bookedCount;
+
+      if (availableCount < requestedCount) {
+        res.json({ available: false, availableCount });
+      } else {
+        res.json({ available: true, availableCount });
+      }
+
+    } catch (e: any) {
+      console.error("Availability Check Error:", e);
+      res.status(500).json({ error: e.message || "Failed to check availability" });
+    }
+  });
+
   // Create an order and a booking
   app.post("/api/create-order", async (req, res) => {
     try {
       const { guestName, guestPhone, roomId, roomName, checkIn, checkOut, guests, roomCount, amountToPay, totalAmount, remainingAmount } = req.body;
       
+      // Verification of availability
+      if (roomId) {
+        const { data: room } = await supabaseAdmin.from("rooms").select("total_rooms").eq("id", roomId).single();
+        if (room) {
+          const totalRooms = room.total_rooms || 1;
+          const { data: bookings } = await supabaseAdmin
+            .from("bookings")
+            .select("room_count")
+            .eq("room_id", roomId)
+            .neq("status", "Cancelled")
+            .lt("check_in", checkOut)
+            .gt("check_out", checkIn);
+          
+          if (bookings) {
+            const bookedCount = bookings.reduce((sum, b) => sum + (b.room_count || 1), 0);
+            if (totalRooms - bookedCount < (roomCount || 1)) {
+              return res.status(400).json({ error: "Selected room is not available for these dates." });
+            }
+          }
+        }
+      }
+
       const rzp = await getRazorpay();
       
       // Amount is in paisa (INR * 100)

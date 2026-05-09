@@ -54,7 +54,7 @@ export default function BookingModal({ isOpen, onClose, room }) {
 
   if (!isOpen || !room) return null;
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!formData.name || !formData.phone || !formData.checkIn || !formData.checkOut) {
       toast.error("Please fill all required fields");
       return;
@@ -71,7 +71,38 @@ export default function BookingModal({ isOpen, onClose, room }) {
       toast.error("Check-out date must be after check-in date");
       return;
     }
-    setStep(2);
+    
+    setLoading(true);
+    try {
+      const response = await fetch("/api/check-availability", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomId: room.id,
+          checkIn: formData.checkIn,
+          checkOut: formData.checkOut,
+          requestedCount: formData.rooms
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to check availability");
+      }
+      
+      if (!data.available) {
+        toast.error(`Selected room is not available for these dates.`);
+        setLoading(false);
+        return;
+      }
+      
+      setStep(2);
+    } catch (e) {
+      toast.error(e.message || "Something went wrong checking availability");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadRazorpay = () => {
@@ -288,9 +319,10 @@ export default function BookingModal({ isOpen, onClose, room }) {
 
               <button 
                 onClick={handleNext}
-                className="w-full bg-[#d4af37] text-black hover:bg-[#f3e5ab] py-3.5 rounded font-bold transition flex items-center justify-center gap-2 mt-6 uppercase tracking-wider text-sm shadow-lg shadow-[#d4af37]/20"
+                disabled={loading}
+                className="w-full bg-[#d4af37] text-black hover:bg-[#f3e5ab] disabled:opacity-50 disabled:cursor-not-allowed py-3.5 rounded font-bold transition flex items-center justify-center gap-2 mt-6 uppercase tracking-wider text-sm shadow-lg shadow-[#d4af37]/20"
               >
-                Review Booking Details <ChevronRight className="w-4 h-4"/>
+                {loading ? "Checking Availability..." : "Review Booking Details"} <ChevronRight className="w-4 h-4"/>
               </button>
             </div>
           )}

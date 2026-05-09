@@ -6,11 +6,12 @@ import toast from 'react-hot-toast';
 export default function RoomsManager() {
   const [rooms, setRooms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeBookings, setActiveBookings] = useState<Record<string, number>>({});
   
   // Edit & Add State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [editForm, setEditForm] = useState<any>({ name: '', price: 0, description: '', image_url: '' });
+  const [editForm, setEditForm] = useState<any>({ name: '', price: 0, description: '', image_url: '', total_rooms: 1 });
   
   // Actions states
   const [saving, setSaving] = useState(false);
@@ -25,6 +26,24 @@ export default function RoomsManager() {
     setLoading(true);
     const { data } = await supabase.from('rooms').select('*').order('created_at');
     setRooms(data || []);
+
+    // Fetch active bookings for today
+    const today = new Date().toISOString().split('T')[0];
+    const { data: bookingsData } = await supabase
+      .from('bookings')
+      .select('room_id, room_count')
+      .neq('status', 'Cancelled')
+      .lte('check_in', today)
+      .gt('check_out', today);
+
+    if (bookingsData) {
+      const counts: Record<string, number> = {};
+      bookingsData.forEach(b => {
+        counts[b.room_id] = (counts[b.room_id] || 0) + (b.room_count || 1);
+      });
+      setActiveBookings(counts);
+    }
+
     setLoading(false);
   };
 
@@ -38,7 +57,7 @@ export default function RoomsManager() {
   const startAdd = () => {
     setIsAdding(true);
     setEditingId(null);
-    setEditForm({ name: '', price: 0, description: '', image_url: '' });
+    setEditForm({ name: '', price: 0, description: '', image_url: '', total_rooms: 1 });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -106,7 +125,8 @@ export default function RoomsManager() {
           name: editForm.name,
           price: editForm.price,
           description: editForm.description,
-          image_url: editForm.image_url
+          image_url: editForm.image_url,
+          total_rooms: editForm.total_rooms
         }).eq('id', editingId);
         if (error) throw error;
         toast.success('Room updated successfully!');
@@ -172,14 +192,26 @@ export default function RoomsManager() {
                   onChange={e => setEditForm({...editForm, name: e.target.value})} 
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-[#9ca3af] mb-2">Price per Night (₹) <span className="text-red-400">*</span></label>
-                <input 
-                  type="number"
-                  className="w-full bg-[#0f1011] border border-[#2a2d32] rounded-lg p-3.5 text-white focus:border-[#d4af37] transition-colors outline-none" 
-                  value={editForm.price} 
-                  onChange={e => setEditForm({...editForm, price: parseFloat(e.target.value)})} 
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#9ca3af] mb-2">Price per Night (₹) <span className="text-red-400">*</span></label>
+                  <input 
+                    type="number"
+                    className="w-full bg-[#0f1011] border border-[#2a2d32] rounded-lg p-3.5 text-white focus:border-[#d4af37] transition-colors outline-none" 
+                    value={editForm.price} 
+                    onChange={e => setEditForm({...editForm, price: parseFloat(e.target.value)})} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#9ca3af] mb-2">Total Rooms Available <span className="text-red-400">*</span></label>
+                  <input 
+                    type="number"
+                    min="1"
+                    className="w-full bg-[#0f1011] border border-[#2a2d32] rounded-lg p-3.5 text-white focus:border-[#d4af37] transition-colors outline-none" 
+                    value={editForm.total_rooms || 1} 
+                    onChange={e => setEditForm({...editForm, total_rooms: parseInt(e.target.value) || 1})} 
+                  />
+                </div>
               </div>
               <div>
                 <div className="flex justify-between items-end mb-2">
@@ -296,6 +328,13 @@ export default function RoomsManager() {
               )}
               <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-sm font-semibold text-[#d4af37] border border-[#d4af37]/30">
                 ₹{room.price}
+              </div>
+              <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-sm font-medium text-white border border-white/20 flex gap-2 items-center">
+                <span>{room.total_rooms || 1} Total</span>
+                <span className="w-1 h-3 bg-white/20"></span>
+                <span className={activeBookings[room.id] === (room.total_rooms || 1) ? "text-red-400" : "text-green-400"}>
+                  {activeBookings[room.id] || 0} Booked Today
+                </span>
               </div>
             </div>
 
