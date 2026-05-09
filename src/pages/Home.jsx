@@ -14,6 +14,51 @@ const COLORS = {
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [rooms, setRooms] = useState([]);
+  const [pageImages, setPageImages] = useState({});
+  const [galleryImages, setGalleryImages] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Default fallbacks in case database is empty or fetching fails
+  const fallbackImages = {
+    hero: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=1600",
+    lobby: "https://images.unsplash.com/photo-1562790351-d273a961e0e9?w=600",
+    restaurant: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1400"
+  };
+
+  const fallbackGallery = [
+    "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600",
+    "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=600",
+    "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=600",
+    "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=600",
+    "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600",
+    "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=600"
+  ];
+
+  const fallbackRooms = [
+    {
+      name: 'Standard AC Room',
+      price: 600,
+      description: 'Comfortable and affordable room perfect for solo travelers or short stays.',
+      image_url: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600',
+      features: ['AC', 'WiFi', 'TV', 'Attached Bath', 'Room Service']
+    },
+    {
+      name: 'Deluxe AC Room',
+      price: 900,
+      description: 'Spacious room with elegant decor, offering extra comfort for couples and small families.',
+      image_url: 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=600',
+      popular: true,
+      features: ['AC', 'WiFi', 'TV', 'Attached Bath', 'Work Desk', 'Room Service']
+    },
+    {
+      name: 'Premium AC Room',
+      price: 1200,
+      description: 'Our finest accommodation featuring a private terrace and dedicated butler service.',
+      image_url: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=600',
+      features: ['AC', 'WiFi', 'Terrace', 'Butler', 'Work Desk']
+    }
+  ];
 
   useEffect(() => {
     // Inject Google Fonts
@@ -34,6 +79,9 @@ export default function App() {
     script.async = true;
     document.body.appendChild(script);
 
+    // Fetch dynamic content from Supabase
+    fetchSupabaseData();
+
     return () => {
       document.head.removeChild(linkObj);
       if (document.body.contains(script)) {
@@ -41,6 +89,44 @@ export default function App() {
       }
     };
   }, []);
+
+  const fetchSupabaseData = async () => {
+    try {
+      // Dynamic import to avoid missing supabase dependency error if running without it, though it is used in the app
+      const { supabase } = await import('../lib/supabase');
+      
+      // Fetch rooms
+      const { data: roomsData, error: roomsError } = await supabase.from('rooms').select('*').order('price', { ascending: true });
+      if (!roomsError && roomsData?.length > 0) {
+        setRooms(roomsData);
+      }
+      
+      // Fetch images
+      const { data: imagesData, error: imagesError } = await supabase.from('page_images').select('*');
+      if (!imagesError && imagesData?.length > 0) {
+        const coreImages = {};
+        const gImages = [];
+        imagesData.forEach(img => {
+          if (img.id.startsWith('gallery_')) {
+            gImages.push(img.url);
+          } else {
+            coreImages[img.id] = img.url;
+          }
+        });
+        setPageImages(coreImages);
+        if (gImages.length > 0) setGalleryImages(gImages);
+      }
+    } catch (e) {
+      console.error("Error fetching data:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const currentRooms = rooms.length > 0 ? rooms : fallbackRooms;
+  const currentHeroImage = pageImages.hero || fallbackImages.hero;
+  const currentRestaurantImage = pageImages.restaurant || fallbackImages.restaurant;
+  const currentGallery = galleryImages.length > 0 ? galleryImages : fallbackGallery;
 
   const handleBooking = (roomName, amount) => {
     if (!window.Razorpay) {
@@ -150,7 +236,7 @@ export default function App() {
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-black/60 sm:bg-black/50 z-10"></div>
           <img 
-            src="https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=1600" 
+            src={currentHeroImage} 
             alt="Hotel Kusum Interior" 
             className="w-full h-full object-cover grayscale-[20%] contrast-110"
           />
@@ -218,108 +304,51 @@ export default function App() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Card 1 */}
-          <div className="bg-[rgba(26,27,30,0.6)] backdrop-blur-[12px] border border-[#2a2d32] rounded-xl overflow-hidden hover:border-[#d4af37]/50 transition-colors group flex flex-col h-full">
-            <div className="relative h-64 overflow-hidden">
-              <img 
-                src="https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600" 
-                alt="Standard AC Room" 
-                className="w-full h-full object-cover grayscale-[20%] contrast-110 transform group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-sm text-white px-4 py-2 rounded text-lg font-bold border border-[#2a2d32]">
-                ₹600<span className="text-sm text-gray-400 font-normal">/night</span>
+          {currentRooms.map((room, idx) => (
+            <div key={room.id || idx} className={`bg-[rgba(26,27,30,0.6)] backdrop-blur-[12px] border ${room.popular ? 'border-[#d4af37]/40 shadow-2xl shadow-[#d4af37]/10 transform md:-translate-y-4' : 'border-[#2a2d32] hover:border-[#d4af37]/50'} rounded-xl overflow-hidden relative group flex flex-col h-full transition-colors`}>
+              {room.popular && (
+                <div className="absolute top-0 w-full bg-[#d4af37] text-black text-xs font-bold text-center py-1 z-10 tracking-wider">
+                  MOST POPULAR
+                </div>
+              )}
+              <div className={`relative h-64 overflow-hidden ${room.popular ? 'mt-6' : ''}`}>
+                <img 
+                  src={room.image_url} 
+                  alt={room.name} 
+                  className="w-full h-full object-cover grayscale-[20%] contrast-110 transform group-hover:scale-105 transition-transform duration-700"
+                />
+                <div className={`absolute top-4 right-4 bg-black/80 backdrop-blur-sm px-4 py-2 rounded text-lg font-bold border ${room.popular ? 'text-[#d4af37] border-[#d4af37]' : 'text-white border-[#2a2d32]'}`}>
+                  ₹{room.price}<span className={`text-sm font-normal ${room.popular ? 'text-gray-300' : 'text-gray-400'}`}>/night</span>
+                </div>
+              </div>
+              <div className="p-8 flex flex-col flex-grow text-center">
+                <h3 style={cormorantFont} className="text-2xl font-bold text-white mb-4">{room.name}</h3>
+                <p className="text-gray-400 text-sm mb-6 flex-grow">
+                  {room.description}
+                </p>
+                <div className="flex flex-wrap justify-center gap-3 mb-8 text-xs text-gray-300 font-medium">
+                  {room.features ? room.features.map((feature, fIdx) => (
+                    <span key={fIdx} className={`px-3 py-1 rounded ${feature === 'Terrace' || feature === 'Butler' ? 'border border-[#d4af37]/30 text-[#d4af37]' : 'bg-[#2a2d32]'}`}>
+                      {feature}
+                    </span>
+                  )) : (
+                    <>
+                      <span className="bg-[#2a2d32] px-3 py-1 rounded">AC</span>
+                      <span className="bg-[#2a2d32] px-3 py-1 rounded">WiFi</span>
+                      <span className="bg-[#2a2d32] px-3 py-1 rounded">TV</span>
+                      <span className="bg-[#2a2d32] px-3 py-1 rounded">Attached Bath</span>
+                    </>
+                  )}
+                </div>
+                <button 
+                  onClick={() => handleBooking(room.name, room.price)}
+                  className={`w-full py-4 rounded font-bold transition-all mt-auto ${room.popular ? 'bg-gradient-to-r from-[#d4af37] to-[#f3e5ab] text-black hover:opacity-90 shadow-lg' : 'bg-transparent border border-[#d4af37] text-[#d4af37] hover:bg-[#d4af37] hover:text-black'}`}
+                >
+                  Book {room.name.replace(' AC Room', '')}
+                </button>
               </div>
             </div>
-            <div className="p-8 flex flex-col flex-grow text-center">
-              <h3 style={cormorantFont} className="text-2xl font-bold text-white mb-4">Standard AC Room</h3>
-              <p className="text-gray-400 text-sm mb-6 flex-grow">
-                Comfortable and affordable room perfect for solo travelers or short stays.
-              </p>
-              <div className="flex flex-wrap justify-center gap-3 mb-8 text-xs text-gray-300 font-medium">
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">AC</span>
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">WiFi</span>
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">TV</span>
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">Attached Bath</span>
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">Room Service</span>
-              </div>
-              <button 
-                onClick={() => handleBooking('Standard AC Room', 600)}
-                className="w-full bg-transparent border border-[#d4af37] text-[#d4af37] hover:bg-[#d4af37] hover:text-black py-4 rounded font-bold transition-all mt-auto"
-              >
-                Book Standard Room
-              </button>
-            </div>
-          </div>
-
-          {/* Card 2 */}
-          <div className="bg-[rgba(26,27,30,0.6)] backdrop-blur-[12px] border border-[#d4af37]/40 rounded-xl overflow-hidden relative shadow-2xl shadow-[#d4af37]/10 group flex flex-col h-full transform md:-translate-y-4">
-            <div className="absolute top-0 w-full bg-[#d4af37] text-black text-xs font-bold text-center py-1 z-10 tracking-wider">
-              MOST POPULAR
-            </div>
-            <div className="relative h-64 overflow-hidden mt-6">
-              <img 
-                src="https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=600" 
-                alt="Deluxe AC Room" 
-                className="w-full h-full object-cover grayscale-[20%] contrast-110 transform group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-sm text-[#d4af37] px-4 py-2 rounded text-lg font-bold border border-[#d4af37]">
-                ₹900<span className="text-sm text-gray-300 font-normal">/night</span>
-              </div>
-            </div>
-            <div className="p-8 flex flex-col flex-grow text-center">
-              <h3 style={cormorantFont} className="text-2xl font-bold text-white mb-4">Deluxe AC Room</h3>
-              <p className="text-gray-400 text-sm mb-6 flex-grow">
-                Spacious room with elegant decor, offering extra comfort for couples and small families.
-              </p>
-              <div className="flex flex-wrap justify-center gap-3 mb-8 text-xs text-gray-300 font-medium">
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">AC</span>
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">WiFi</span>
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">TV</span>
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">Attached Bath</span>
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">Work Desk</span>
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">Room Service</span>
-              </div>
-              <button 
-                onClick={() => handleBooking('Deluxe AC Room', 900)}
-                className="w-full bg-gradient-to-r from-[#d4af37] to-[#f3e5ab] text-black py-4 rounded font-bold hover:opacity-90 transition-all mt-auto shadow-lg"
-              >
-                Book Deluxe Room
-              </button>
-            </div>
-          </div>
-
-          {/* Card 3 */}
-          <div className="bg-[rgba(26,27,30,0.6)] backdrop-blur-[12px] border border-[#2a2d32] rounded-xl overflow-hidden hover:border-[#d4af37]/50 transition-colors group flex flex-col h-full">
-            <div className="relative h-64 overflow-hidden">
-              <img 
-                src="https://images.unsplash.com/photo-1582719508461-905c673771fd?w=600" 
-                alt="Premium AC Room" 
-                className="w-full h-full object-cover grayscale-[20%] contrast-110 transform group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-sm text-white px-4 py-2 rounded text-lg font-bold border border-[#2a2d32]">
-                ₹1,200<span className="text-sm text-gray-400 font-normal">/night</span>
-              </div>
-            </div>
-            <div className="p-8 flex flex-col flex-grow text-center">
-              <h3 style={cormorantFont} className="text-2xl font-bold text-white mb-4">Premium AC Room</h3>
-              <p className="text-gray-400 text-sm mb-6 flex-grow">
-                Our finest accommodation featuring a private terrace and dedicated butler service.
-              </p>
-              <div className="flex flex-wrap justify-center gap-3 mb-8 text-xs text-gray-300 font-medium">
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">AC</span>
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">WiFi</span>
-                <span className="bg-[#2a2d32] px-3 py-1 rounded border border-[#d4af37]/30 text-[#d4af37]">Terrace</span>
-                <span className="bg-[#2a2d32] px-3 py-1 rounded border border-[#d4af37]/30 text-[#d4af37]">Butler</span>
-                <span className="bg-[#2a2d32] px-3 py-1 rounded">Work Desk</span>
-              </div>
-              <button 
-                onClick={() => handleBooking('Premium AC Room', 1200)}
-                className="w-full bg-transparent border border-[#d4af37] text-[#d4af37] hover:bg-[#d4af37] hover:text-black py-4 rounded font-bold transition-all mt-auto"
-              >
-                Book Premium Room
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 
@@ -362,7 +391,7 @@ export default function App() {
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-black/80 z-10"></div>
           <img 
-            src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1400" 
+            src={currentRestaurantImage} 
             alt="Restaurant" 
             className="w-full h-full object-cover grayscale-[20%] contrast-110"
           />
@@ -389,14 +418,7 @@ export default function App() {
         </div>
 
         <div className="columns-2 lg:columns-3 gap-4 space-y-4">
-          {[
-            "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600",
-            "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=600",
-            "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=600",
-            "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=600",
-            "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600",
-            "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=600"
-          ].map((src, idx) => (
+          {currentGallery.map((src, idx) => (
             <div key={idx} className="relative overflow-hidden rounded group mb-4">
               <img 
                 src={src} 
