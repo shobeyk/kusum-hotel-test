@@ -87,7 +87,7 @@ export default function BookingModal({ isOpen, onClose, room }) {
       
       const data = await response.json();
       
-      if (!response.ok) {
+      if (!response.ok || data.success === false) {
         throw new Error(data.error || "Failed to check availability");
       }
       
@@ -123,8 +123,8 @@ export default function BookingModal({ isOpen, onClose, room }) {
       const resKey = await fetch("/api/razorpay-key");
       const keyData = await resKey.json();
 
-      if (!resKey.ok || !keyData.key_id) {
-        throw new Error("Payment gateway not configured. Please contact hotel.");
+      if (!resKey.ok || keyData.success === false || !keyData.key_id) {
+        throw new Error(keyData.error || "Payment gateway not configured. Please contact hotel.");
       }
 
       const resLoad = await loadRazorpay();
@@ -153,7 +153,7 @@ export default function BookingModal({ isOpen, onClose, room }) {
 
       const orderData = await response.json();
 
-      if (!response.ok) {
+      if (!response.ok || orderData.success === false) {
         throw new Error(orderData.error || "Failed to create order");
       }
 
@@ -182,7 +182,7 @@ export default function BookingModal({ isOpen, onClose, room }) {
 
             const verifyData = await verifyRes.json();
             
-            if (verifyRes.ok) {
+            if (verifyRes.ok && verifyData.success !== false) {
               toast.success("Payment successful! Booking confirmed.", { id: "payment-verify" });
               setStep(3); // Go to success page
             } else {

@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -16,6 +17,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use(cors());
   app.use(express.json());
 
   // Initialize Supabase Admin Client
@@ -54,11 +56,11 @@ async function startServer() {
     try {
       const { data, error } = await supabaseAdmin.from('payment_settings').select('razorpay_key_id').limit(1).maybeSingle();
       if (error || !data || !data.razorpay_key_id) {
-        return res.status(404).json({ error: "Razorpay key not found" });
+        return res.status(404).json({ success: false, error: "Razorpay key not found" });
       }
-      res.json({ key_id: data.razorpay_key_id });
+      res.json({ success: true, key_id: data.razorpay_key_id });
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ success: false, error: e.message });
     }
   });
 
@@ -70,7 +72,7 @@ async function startServer() {
     try {
       const { roomId, checkIn, checkOut, requestedCount } = req.body;
       if (!roomId || !checkIn || !checkOut || !requestedCount) {
-        return res.status(400).json({ error: "Missing required fields" });
+        return res.status(400).json({ success: false, error: "Missing required fields" });
       }
 
       // Get total rooms available
@@ -81,7 +83,7 @@ async function startServer() {
         .single();
       
       if (roomError || !room) {
-        return res.status(404).json({ error: "Room not found" });
+        return res.status(404).json({ success: false, error: "Room not found" });
       }
 
       const totalRooms = room.total_rooms || 1;
@@ -102,18 +104,17 @@ async function startServer() {
       }
 
       const bookedCount = bookings.reduce((sum, b) => sum + (b.room_count || 1), 0);
-
       const availableCount = totalRooms - bookedCount;
 
       if (availableCount < requestedCount) {
-        res.json({ available: false, availableCount });
+        res.json({ success: true, available: false, availableCount });
       } else {
-        res.json({ available: true, availableCount });
+        res.json({ success: true, available: true, availableCount });
       }
 
     } catch (e: any) {
       console.error("Availability Check Error:", e);
-      res.status(500).json({ error: e.message || "Failed to check availability" });
+      res.status(500).json({ success: false, error: e.message || "Failed to check availability" });
     }
   });
 
@@ -180,6 +181,7 @@ async function startServer() {
       }
 
       res.json({
+        success: true,
         order_id: order.id,
         amount: order.amount,
         currency: order.currency,
@@ -187,7 +189,7 @@ async function startServer() {
       });
     } catch (e: any) {
       console.error(e);
-      res.status(500).json({ error: e.message || "Failed to create order" });
+      res.status(500).json({ success: false, error: e.message || "Failed to create order" });
     }
   });
 
@@ -212,7 +214,7 @@ async function startServer() {
           payment_status: "Failed Payment"
         }).eq("id", booking_id);
 
-        return res.status(400).json({ error: "Invalid payment signature" });
+        return res.status(400).json({ success: false, error: "Invalid payment signature" });
       }
 
       // Valid signature -> Update booking
@@ -229,7 +231,7 @@ async function startServer() {
       res.json({ success: true });
     } catch (e: any) {
       console.error(e);
-      res.status(500).json({ error: e.message || "Failed to verify payment" });
+      res.status(500).json({ success: false, error: e.message || "Failed to verify payment" });
     }
   });
 
