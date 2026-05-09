@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, MapPin, Phone, MessageCircle, Star, Wifi, AirVent, BellRing, Utensils, Clock, Car, BatteryCharging, Briefcase, Trees, Cross, Shield, Check } from 'lucide-react';
+import BookingModal from '../components/BookingModal';
 
 const COLORS = {
   bg: '#0f1011',
@@ -20,6 +21,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [heroImageSrc, setHeroImageSrc] = useState(null);
   const [heroImageLoaded, setHeroImageLoaded] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState(null);
 
   // Default fallbacks in case database is empty or fetching fails
   const fallbackImages = {
@@ -133,45 +135,19 @@ export default function App() {
   const currentRestaurantImage = pageImages.restaurant || fallbackImages.restaurant;
   const currentGallery = galleryImages.length > 0 ? galleryImages : fallbackGallery;
 
-  const handleBooking = (roomName, amount) => {
-    if (!window.Razorpay) {
-      alert("Razorpay SDK failed to load. Are you online?");
-      return;
-    }
-
-    const options = {
-      key: "YOUR_RAZORPAY_KEY_ID", // Using placeholder as requested
-      amount: amount * 100, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
-      currency: "INR",
-      name: "Hotel Kusum",
-      description: `Advance Booking for ${roomName}`,
-      image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=100&q=80",
-      handler: function (response) {
-        setToastMessage("Booking confirmed! We'll reach you shortly.");
-        setTimeout(() => setToastMessage(''), 5000);
-      },
-      prefill: {
-        name: "",
-        email: "",
-        contact: ""
-      },
-      theme: {
-        color: COLORS.gold
-      }
-    };
-    
-    try {
-      const rzp1 = new window.Razorpay(options);
-      rzp1.open();
-    } catch(err) {
-      console.error(err);
-    }
+  const handleBooking = (room) => {
+    setSelectedRoom(room);
   };
 
   const cormorantFont = { fontFamily: "'Playfair Display', serif" };
 
   return (
     <div className="min-h-screen relative selection:bg-[#d4af37] selection:text-black">
+      <BookingModal 
+        isOpen={selectedRoom !== null} 
+        onClose={() => setSelectedRoom(null)} 
+        room={selectedRoom || {}} 
+      />
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-24 right-4 z-50 bg-[#1a1b1e] border border-[#d4af37] text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-2 fade-in">
@@ -354,7 +330,7 @@ export default function App() {
                   )}
                 </div>
                 <button 
-                  onClick={() => handleBooking(room.name, room.price)}
+                  onClick={() => handleBooking(room)}
                   className={`w-full py-4 rounded font-bold transition-all mt-auto ${room.popular ? 'bg-gradient-to-r from-[#d4af37] to-[#f3e5ab] text-black hover:opacity-90 shadow-lg' : 'bg-transparent border border-[#d4af37] text-[#d4af37] hover:bg-[#d4af37] hover:text-black'}`}
                 >
                   Book {room.name.replace(' AC Room', '')}

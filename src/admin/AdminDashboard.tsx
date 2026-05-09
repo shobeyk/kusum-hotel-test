@@ -1,11 +1,12 @@
 import React from 'react';
 import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Key, LayoutDashboard, LogOut, Bed, Image as ImageIcon } from 'lucide-react';
+import { Key, LayoutDashboard, LogOut, Bed, Image as ImageIcon, Calendar } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import RoomsManager from './RoomsManager';
 import RazorpaySettings from './RazorpaySettings';
 import HomepageImages from './HomepageImages';
+import BookingsManager from './BookingsManager';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export default function AdminDashboard() {
 
   const navItems = [
     { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+    { name: 'Bookings', path: '/admin/bookings', icon: Calendar },
     { name: 'Rooms', path: '/admin/rooms', icon: Bed },
     { name: 'Homepage Images', path: '/admin/images', icon: ImageIcon },
     { name: 'Payment Settings', path: '/admin/settings', icon: Key },
@@ -25,13 +27,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex h-screen bg-[#0f1011] font-inter text-white">
-      <Toaster position="top-right" toastOptions={{
-        style: {
-          background: '#1a1b1e',
-          color: '#fff',
-          border: '1px solid #2a2d32',
-        },
-      }} />
       {/* Sidebar */}
       <div className="w-64 bg-[#1a1b1e] border-r border-[#2a2d32] flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-[#2a2d32]">
@@ -79,6 +74,7 @@ export default function AdminDashboard() {
         <main className="p-8">
           <Routes>
             <Route path="/" element={<Overview />} />
+            <Route path="/bookings" element={<BookingsManager />} />
             <Route path="/rooms" element={<RoomsManager />} />
             <Route path="/images" element={<HomepageImages />} />
             <Route path="/settings" element={<RazorpaySettings />} />

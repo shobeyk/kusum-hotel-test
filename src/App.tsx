@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import Home from './pages/Home';
 import AdminDashboard from './admin/AdminDashboard';
 import AdminLogin from './admin/AdminLogin';
@@ -38,20 +39,26 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route 
-        path="/admin/login" 
-        element={session ? <Navigate to="/admin" replace /> : <AdminLogin />} 
-      />
-      <Route 
-        path="/admin/*" 
-        element={
-          <ProtectedRoute session={session}>
-            <AdminDashboard />
-          </ProtectedRoute>
-        } 
-      />
-    </Routes>
+    <>
+      <Toaster toastOptions={{
+        position: 'top-center',
+        style: { background: '#1a1b1e', color: '#fff', border: '1px solid #2a2d32' }
+      }} />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route 
+          path="/admin/login" 
+          element={session ? <Navigate to="/admin" replace /> : <AdminLogin />} 
+        />
+        <Route 
+          path="/admin/*" 
+          element={
+            <ProtectedRoute session={session}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } 
+        />
+      </Routes>
+    </>
   );
 }
