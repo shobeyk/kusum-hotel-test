@@ -90,7 +90,6 @@ export default function HomepageImages() {
   // Core Images
   const expectedImages = [
     { id: 'hero', label: 'Hero Section Image', desc: 'Main image seen when landing on the website' },
-    { id: 'lobby', label: 'Lobby / About Image', desc: 'Image shown in the About Us section' },
     { id: 'restaurant', label: 'Restaurant Image', desc: 'Image shown in the Dining section' },
   ];
 
